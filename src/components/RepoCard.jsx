@@ -1,7 +1,9 @@
 import { useState, useCallback, memo } from 'react';
-import { Star, GitFork, Bookmark } from 'lucide-react';
+import { Star, GitFork, Bookmark, Languages, Loader2 } from 'lucide-react';
 import { formatNumber } from '../utils/githubApi';
 import { getLanguageColor } from '../utils/languageColors';
+import { useTranslate } from '../hooks/useTranslate';
+import t from '../i18n/zh-CN';
 
 /**
  * 单个仓库卡片组件
@@ -16,6 +18,9 @@ export const RepoCard = memo(function RepoCard({ repo, isBookmarked, onToggleBoo
   const [bouncing, setBouncing] = useState(false);
   const isDark = theme === 'dark';
 
+  const description = repo.description || '';
+  const { translated, loading: translating, error: translateError, translate, showOriginal, isTranslated } = useTranslate(description);
+
   const handleBookmarkClick = useCallback((e) => {
     e.stopPropagation();
     setBouncing(true);
@@ -29,12 +34,13 @@ export const RepoCard = memo(function RepoCard({ repo, isBookmarked, onToggleBoo
 
   const owner = repo.owner?.login || '—';
   const name = repo.name || '—';
-  const description = repo.description || '';
   const language = repo.language || null;
   const stars = repo.stargazers_count;
   const forks = repo.forks_count;
   const topics = repo.topics || [];
   const avatarUrl = repo.owner?.avatar_url || `https://github.com/${owner}.png?size=40`;
+
+  const displayDescription = isTranslated ? translated : description;
 
   return (
     <article
@@ -66,7 +72,7 @@ export const RepoCard = memo(function RepoCard({ repo, isBookmarked, onToggleBoo
         <div className="flex items-start gap-3 mb-3">
           <img
             src={avatarUrl}
-            alt={`${owner}'s avatar`}
+            alt={t.card.avatarAlt.replace('{owner}', owner)}
             width={40}
             height={40}
             loading="lazy"
@@ -98,7 +104,7 @@ export const RepoCard = memo(function RepoCard({ repo, isBookmarked, onToggleBoo
             style={{
               color: isBookmarked ? '#e3b341' : (isDark ? '#7d8590' : '#656d76'),
             }}
-            aria-label={`${isBookmarked ? 'Remove bookmark for' : 'Bookmark'} ${owner}/${name}`}
+            aria-label={(isBookmarked ? t.bookmark.removeFrom : t.bookmark.addTo).replace('{name}', `${owner}/${name}`)}
           >
             <Bookmark
               className="w-4 h-4"
@@ -107,15 +113,53 @@ export const RepoCard = memo(function RepoCard({ repo, isBookmarked, onToggleBoo
           </button>
         </div>
 
-        {/* 描述 */}
+        {/* 描述 + 翻译按钮 */}
         {description && (
-          <p
-            className="text-sm mb-3 line-clamp-2 leading-relaxed"
-            style={{ color: isDark ? '#7d8590' : '#656d76' }}
-            title={description}
-          >
-            {description}
-          </p>
+          <div className="mb-3">
+            <p
+              className="text-sm line-clamp-2 leading-relaxed"
+              style={{ color: isDark ? '#7d8590' : '#656d76' }}
+              title={displayDescription}
+            >
+              {displayDescription}
+            </p>
+            <div className="flex items-center gap-2 mt-1.5">
+              {isTranslated ? (
+                <button
+                  onClick={(e) => { e.stopPropagation(); showOriginal(); }}
+                  className="flex items-center gap-1 text-xs hover:underline transition-colors"
+                  style={{ color: isDark ? '#58a6ff' : '#0969da' }}
+                >
+                  <Languages className="w-3 h-3" />
+                  {t.translate.showOriginal}
+                </button>
+              ) : (
+                <button
+                  onClick={(e) => { e.stopPropagation(); translate(); }}
+                  className="flex items-center gap-1 text-xs hover:underline transition-colors"
+                  style={{ color: isDark ? '#7d8590' : '#656d76' }}
+                  disabled={translating}
+                >
+                  {translating ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      {t.translate.translating}
+                    </>
+                  ) : (
+                    <>
+                      <Languages className="w-3 h-3" />
+                      {t.translate.button}
+                    </>
+                  )}
+                </button>
+              )}
+              {translateError && (
+                <span className="text-xs" style={{ color: isDark ? '#f85149' : '#cf222e' }}>
+                  {t.translate.error}
+                </span>
+              )}
+            </div>
+          </div>
         )}
 
         {/* 底部：语言 + Stars + Forks */}
@@ -158,7 +202,7 @@ export const RepoCard = memo(function RepoCard({ repo, isBookmarked, onToggleBoo
             ))}
             {topics.length > 3 && (
               <span className="text-xs" style={{ color: isDark ? '#7d8590' : '#656d76' }}>
-                +{topics.length - 3} more
+                {t.card.more.replace('{n}', topics.length - 3)}
               </span>
             )}
           </div>

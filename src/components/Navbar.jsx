@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Sun, Moon, Search, X, Bookmark, TrendingUp } from 'lucide-react';
+import t from '../i18n/zh-CN';
 
 /**
  * 顶部导航栏组件
@@ -59,7 +60,7 @@ export function Navbar({ theme, toggleTheme, keyword, onSearch, activeTab, onTab
               fontFamily: "'JetBrains Mono', monospace",
               color: theme === 'dark' ? '#e6edf3' : '#1f2328',
             }}>
-            Trending
+            {t.nav.title}
           </span>
         </div>
 
@@ -77,7 +78,7 @@ export function Navbar({ theme, toggleTheme, keyword, onSearch, activeTab, onTab
                 : (theme === 'dark' ? '#7d8590' : '#656d76'),
             }}
           >
-            Trending
+            {t.nav.trending}
           </button>
           <button
             onClick={() => onTabChange('bookmarks')}
@@ -92,7 +93,7 @@ export function Navbar({ theme, toggleTheme, keyword, onSearch, activeTab, onTab
             }}
           >
             <Bookmark className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Bookmarks</span>
+            <span className="hidden sm:inline">{t.nav.bookmarks}</span>
             {bookmarkCount > 0 && (
               <span className="text-xs px-1.5 py-0.5 rounded-full"
                 style={{
@@ -115,7 +116,7 @@ export function Navbar({ theme, toggleTheme, keyword, onSearch, activeTab, onTab
               value={searchValue}
               onChange={handleSearchChange}
               onFocus={() => setSearchOpen(true)}
-              placeholder="Search repos..."
+              placeholder={t.nav.searchPlaceholder}
               className="search-expand rounded-md pl-8 pr-8 py-1.5 text-sm outline-none"
               style={{
                 width: searchOpen ? '240px' : '40px',
@@ -123,7 +124,7 @@ export function Navbar({ theme, toggleTheme, keyword, onSearch, activeTab, onTab
                 color: theme === 'dark' ? '#e6edf3' : '#1f2328',
                 border: `1px solid ${theme === 'dark' ? '#30363d' : '#d0d7de'}`,
               }}
-              aria-label="Search repositories"
+              aria-label={t.a11y.search}
             />
             <Search className="w-4 h-4 absolute left-2.5 pointer-events-none"
               style={{ color: theme === 'dark' ? '#7d8590' : '#656d76' }} />
@@ -131,7 +132,7 @@ export function Navbar({ theme, toggleTheme, keyword, onSearch, activeTab, onTab
               <button
                 onClick={clearSearch}
                 className="absolute right-2 p-0.5 rounded-sm hover:bg-gray-200 dark:hover:bg-gray-700"
-                aria-label="Clear search"
+                aria-label={t.a11y.clearSearch}
               >
                 <X className="w-3.5 h-3.5" style={{ color: theme === 'dark' ? '#7d8590' : '#656d76' }} />
               </button>
@@ -142,7 +143,7 @@ export function Navbar({ theme, toggleTheme, keyword, onSearch, activeTab, onTab
           <button
             onClick={toggleTheme}
             className="p-2 rounded-md transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
-            aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+            aria-label={t.a11y.switchTheme.replace('{mode}', theme === 'light' ? t.a11y.darkMode : t.a11y.lightMode)}
             aria-pressed={theme === 'dark'}
           >
             {theme === 'light' ? (

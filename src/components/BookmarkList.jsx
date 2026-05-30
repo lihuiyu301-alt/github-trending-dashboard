@@ -1,5 +1,6 @@
 import { RepoCard } from './RepoCard';
 import { Bookmark } from 'lucide-react';
+import t from '../i18n/zh-CN';
 
 /**
  * 收藏夹页面组件
@@ -21,10 +22,10 @@ export function BookmarkList({ bookmarks, theme, onToggleBookmark, isBookmarked,
       <div className="flex flex-col items-center justify-center py-16 px-4">
         <Bookmark className="w-16 h-16 mb-4" style={{ color: isDark ? '#30363d' : '#d0d7de' }} />
         <h3 className="text-lg font-semibold mb-2" style={{ color: textColor }}>
-          暂无收藏
+          {t.bookmark.emptyTitle}
         </h3>
         <p className="text-sm" style={{ color: subTextColor }}>
-          浏览 Trending 页面，点击卡片右上角的书签图标来收藏项目
+          {t.bookmark.emptyDesc}
         </p>
       </div>
     );
@@ -35,7 +36,7 @@ export function BookmarkList({ bookmarks, theme, onToggleBookmark, isBookmarked,
       {/* 头部信息 */}
       <div className="flex items-center justify-between mb-6">
         <p className="text-sm" style={{ color: subTextColor }}>
-          共 {bookmarks.length} 个收藏项目
+          {t.bookmark.count.replace('{n}', bookmarks.length)}
         </p>
         <button
           onClick={onClearAll}
@@ -51,7 +52,7 @@ export function BookmarkList({ bookmarks, theme, onToggleBookmark, isBookmarked,
             e.currentTarget.style.backgroundColor = 'transparent';
           }}
         >
-          Clear All
+          {t.bookmark.clearAll}
         </button>
       </div>
 

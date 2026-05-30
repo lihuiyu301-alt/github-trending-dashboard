@@ -1,6 +1,7 @@
 import { RepoCard } from './RepoCard';
 import { SkeletonLoader } from './SkeletonLoader';
 import { EmptyState } from './EmptyState';
+import t from '../i18n/zh-CN';
 
 /**
  * 仓库列表容器
@@ -66,10 +67,10 @@ export function RepoList({ repos, loading, error, theme, onToggleBookmark, isBoo
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                Loading...
+                {t.list.loading}
               </span>
             ) : (
-              'Load More'
+              t.list.loadMore
             )}
           </button>
         </div>

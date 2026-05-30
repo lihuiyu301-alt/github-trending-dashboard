@@ -1,4 +1,5 @@
 import { AlertTriangle, Search, WifiOff } from 'lucide-react';
+import t from '../i18n/zh-CN';
 
 /**
  * 空状态/错误状态展示组件
@@ -21,12 +22,10 @@ export function EmptyState({ type, theme, onRetry }) {
           style={{ backgroundColor: bgColor, borderColor }}>
           <AlertTriangle className="w-12 h-12 mx-auto mb-4" style={{ color: '#e3b341' }} />
           <h3 className="text-lg font-semibold mb-2" style={{ color: textColor }}>
-            🚦 请求过于频繁
+            {t.error.rateLimitTitle}
           </h3>
           <p className="text-sm mb-4" style={{ color: subTextColor }}>
-            GitHub API 每小时限制 60 次请求。
-            <br />
-            您可以登录 GitHub 获得更高配额。
+            {t.error.rateLimitDesc}
           </p>
           <div className="flex items-center justify-center gap-3">
             {onRetry && (
@@ -38,7 +37,7 @@ export function EmptyState({ type, theme, onRetry }) {
                   color: '#ffffff',
                 }}
               >
-                稍后重试
+                {t.error.retry}
               </button>
             )}
             <a
@@ -51,7 +50,7 @@ export function EmptyState({ type, theme, onRetry }) {
                 color: isDark ? '#58a6ff' : '#0969da',
               }}
             >
-              了解 Rate Limit
+              {t.error.learnMore}
             </a>
           </div>
         </div>
@@ -66,10 +65,10 @@ export function EmptyState({ type, theme, onRetry }) {
           style={{ backgroundColor: bgColor, borderColor }}>
           <WifiOff className="w-12 h-12 mx-auto mb-4" style={{ color: subTextColor }} />
           <h3 className="text-lg font-semibold mb-2" style={{ color: textColor }}>
-            网络连接失败
+            {t.error.networkTitle}
           </h3>
           <p className="text-sm mb-4" style={{ color: subTextColor }}>
-            请检查网络连接后重试
+            {t.error.networkDesc}
           </p>
           {onRetry && (
             <button
@@ -80,7 +79,7 @@ export function EmptyState({ type, theme, onRetry }) {
                 color: '#ffffff',
               }}
             >
-              重新加载
+              {t.error.reload}
             </button>
           )}
         </div>
@@ -93,10 +92,10 @@ export function EmptyState({ type, theme, onRetry }) {
     <div className="flex flex-col items-center justify-center py-16 px-4">
       <Search className="w-16 h-16 mb-4" style={{ color: isDark ? '#30363d' : '#d0d7de' }} />
       <h3 className="text-lg font-semibold mb-2" style={{ color: textColor }}>
-        暂无热门项目
+        {t.error.emptyTitle}
       </h3>
       <p className="text-sm" style={{ color: subTextColor }}>
-        该语言/时间段暂无热门项目，试试切换筛选条件
+        {t.error.emptyDesc}
       </p>
     </div>
   );

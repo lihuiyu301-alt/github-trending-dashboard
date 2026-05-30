@@ -1,5 +1,6 @@
 import { Component } from 'react';
 import { AlertTriangle } from 'lucide-react';
+import t from '../i18n/zh-CN';
 
 /**
  * 错误边界组件
@@ -27,10 +28,10 @@ export class ErrorBoundary extends Component {
           <div className="text-center max-w-md">
             <AlertTriangle className="w-16 h-16 mx-auto mb-4" style={{ color: '#e3b341' }} />
             <h2 className="text-xl font-semibold mb-2" style={{ color: '#e6edf3' }}>
-              出现了一些问题
+              {t.error.crashTitle}
             </h2>
             <p className="text-sm mb-6" style={{ color: '#7d8590' }}>
-              应用遇到了意外错误，请刷新页面重试。
+              {t.error.crashDesc}
             </p>
             <button
               onClick={() => window.location.reload()}
@@ -40,7 +41,7 @@ export class ErrorBoundary extends Component {
                 color: '#ffffff',
               }}
             >
-              刷新页面
+              {t.error.crashReload}
             </button>
           </div>
         </div>

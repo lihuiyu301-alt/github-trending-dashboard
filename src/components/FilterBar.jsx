@@ -1,8 +1,9 @@
 import { getLanguageColor } from '../utils/languageColors';
+import t from '../i18n/zh-CN';
 
 /** 必选语言列表 */
 const LANGUAGES = [
-  { label: 'All', value: '' },
+  { label: t.filter.all, value: '' },
   { label: 'JavaScript', value: 'javascript' },
   { label: 'TypeScript', value: 'typescript' },
   { label: 'Python', value: 'python' },
@@ -15,9 +16,9 @@ const LANGUAGES = [
 
 /** 时间周期列表 */
 const DATE_RANGES = [
-  { label: 'Today', value: 'today' },
-  { label: 'This Week', value: 'week' },
-  { label: 'This Month', value: 'month' },
+  { label: t.filter.today, value: 'today' },
+  { label: t.filter.week, value: 'week' },
+  { label: t.filter.month, value: 'month' },
 ];
 
 /**
@@ -45,7 +46,7 @@ export function FilterBar({ language, onLanguageChange, dateRange, onDateRangeCh
         <div
           className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide"
           role="group"
-          aria-label="Select programming language"
+          aria-label={t.a11y.selectLang}
         >
           {LANGUAGES.map((lang) => {
             const isActive = language === lang.value;
@@ -87,7 +88,7 @@ export function FilterBar({ language, onLanguageChange, dateRange, onDateRangeCh
         <div
           className="flex items-center gap-1.5"
           role="group"
-          aria-label="Select time range"
+          aria-label={t.a11y.selectRange}
         >
           {DATE_RANGES.map((range) => {
             const isActive = dateRange === range.value;

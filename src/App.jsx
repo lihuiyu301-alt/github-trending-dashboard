@@ -6,6 +6,7 @@ import { BookmarkList } from './components/BookmarkList';
 import { useGithubSearch } from './hooks/useGithubSearch';
 import { useBookmarks } from './hooks/useBookmarks';
 import { useTheme } from './hooks/useTheme';
+import t from './i18n/zh-CN';
 
 /**
  * 应用主组件
@@ -85,7 +86,7 @@ export default function App() {
             {/* 结果统计 */}
             {!loading && total > 0 && (
               <p className="text-sm mb-4" style={{ color: theme === 'dark' ? '#7d8590' : '#656d76' }}>
-                Found {total.toLocaleString()} repositories
+                {t.list.found.replace('{total}', total.toLocaleString())}
               </p>
             )}
             <RepoList
@@ -114,7 +115,7 @@ export default function App() {
       {/* 页脚 */}
       <footer className="text-center py-6 text-xs"
         style={{ color: theme === 'dark' ? '#484f58' : '#8b949e' }}>
-        GitHub Trending Dashboard — Built with React + Tailwind CSS
+        {t.footer}
       </footer>
     </div>
   );
