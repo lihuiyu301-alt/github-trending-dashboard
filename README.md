@@ -7,7 +7,7 @@
 一个现代化、响应式的 GitHub 热门项目看板，帮助开发者追踪技术趋势、发现优质开源项目。
 
 [![Vite](https://img.shields.io/badge/Vite-8.x-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
-[![React](https://img.shields.io/badge/React-18.x-61DAFB?logo=react&logoColor=white)](https://react.dev/)
+[![React](https://img.shields.io/badge/React-19.x-61DAFB?logo=react&logoColor=white)](https://react.dev/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.x-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
@@ -104,14 +104,14 @@ github-trending-dashboard/
 │   ├── hooks/                  # 自定义 Hooks
 │   │   ├── useGithubSearch.js  # API 请求 + 缓存 + 竞态处理
 │   │   ├── useBookmarks.js     # 收藏夹 localStorage 管理
-│   │   └── useTheme.js         # 主题切换 + 持久化
+│   │   ├── useTheme.js         # 主题切换 + 持久化
+│   │   └── useTranslate.js     # 翻译功能（MyMemory API）
 │   ├── utils/                  # 工具函数
 │   │   ├── githubApi.js        # URL 构建、日期计算、数字格式化
 │   │   └── languageColors.js   # GitHub 官方语言颜色映射
 │   ├── App.jsx                 # 主应用组件
 │   ├── main.jsx                # 入口文件
 │   └── index.css               # 全局样式 + Tailwind 配置
-├── tailwind.config.js          # Tailwind 配置
 ├── vite.config.js              # Vite 配置
 ├── package.json
 └── README.md
@@ -122,7 +122,7 @@ github-trending-dashboard/
 | 层级 | 技术 | 版本 | 说明 |
 |------|------|------|------|
 | 构建工具 | Vite | 8.x | 极速 HMR，ESM 原生支持 |
-| 前端框架 | React | 18.x | Concurrent Mode，自动批处理 |
+| 前端框架 | React | 19.x | Concurrent Mode，自动批处理 |
 | 样式引擎 | Tailwind CSS | 4.x | JIT 模式，`dark:` 变体 |
 | 图标库 | Lucide React | latest | 统一 SVG 图标 |
 | 状态管理 | React Hooks | — | `useState` / `useEffect` / `useCallback` / `useMemo` |

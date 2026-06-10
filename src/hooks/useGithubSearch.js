@@ -8,10 +8,11 @@ import { fetchRepos } from '../utils/githubApi';
  * @param {string} params.language - 语言筛选，'' 表示全部
  * @param {'today'|'week'|'month'} params.dateRange - 时间范围
  * @param {string} params.keyword - 搜索关键词
+ * @param {'stars'|'forks'|'updated'} params.sort - 排序方式
  * @param {number} params.page - 当前页码，默认 1
  * @returns {{ repos: Array, loading: boolean, error: Object|null, total: number, loadMore: () => void, hasMore: boolean }}
  */
-export function useGithubSearch({ language = '', dateRange = 'week', keyword = '', page = 1 }) {
+export function useGithubSearch({ language = '', dateRange = 'week', keyword = '', sort = 'stars', page = 1 }) {
   const [repos, setRepos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -23,8 +24,8 @@ export function useGithubSearch({ language = '', dateRange = 'week', keyword = '
 
   // 生成缓存 key
   const getCacheKey = useCallback(
-    (p) => `${language}|${dateRange}|${keyword}|${p}`,
-    [language, dateRange, keyword]
+    (p) => `${language}|${dateRange}|${keyword}|${sort}|${p}`,
+    [language, dateRange, keyword, sort]
   );
 
   // 当筛选参数变化时重置页码和结果
@@ -32,7 +33,7 @@ export function useGithubSearch({ language = '', dateRange = 'week', keyword = '
     setRepos([]);
     setCurrentPage(1);
     setError(null);
-  }, [language, dateRange, keyword]);
+  }, [language, dateRange, keyword, sort]);
 
   // 发起请求
   useEffect(() => {
@@ -62,7 +63,7 @@ export function useGithubSearch({ language = '', dateRange = 'week', keyword = '
     setError(null);
 
     fetchRepos(
-      { language, dateRange, keyword, page: currentPage },
+      { language, dateRange, keyword, sort, page: currentPage },
       controller.signal
     )
       .then((data) => {
@@ -97,7 +98,7 @@ export function useGithubSearch({ language = '', dateRange = 'week', keyword = '
     setCurrentPage((prev) => prev + 1);
   }, []);
 
-  const hasMore = repos.length < total && repos.length < 100; // GitHub API 限制最多 1000 条，这里限制 100
+  const hasMore = repos.length < total && repos.length < 1000; // GitHub API 限制最多 1000 条
 
   return { repos, loading, error, total, loadMore, hasMore };
 }

@@ -24,10 +24,11 @@ export function getDateFilter(range) {
  * @param {string} params.language - 语言筛选，空字符串表示全部
  * @param {'today'|'week'|'month'} params.dateRange - 时间范围
  * @param {string} params.keyword - 搜索关键词
+ * @param {'stars'|'forks'|'updated'} params.sort - 排序方式
  * @param {number} params.page - 页码
  * @returns {string} 完整的 API URL
  */
-export function buildApiUrl({ language = '', dateRange = 'week', keyword = '', page = 1 }) {
+export function buildApiUrl({ language = '', dateRange = 'week', keyword = '', sort = 'stars', page = 1 }) {
   const date = getDateFilter(dateRange);
   let q = `created:>${date}`;
 
@@ -41,7 +42,7 @@ export function buildApiUrl({ language = '', dateRange = 'week', keyword = '', p
 
   const params = new URLSearchParams({
     q,
-    sort: 'stars',
+    sort,
     order: 'desc',
     per_page: '25',
     page: String(page),

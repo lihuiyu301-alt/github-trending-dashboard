@@ -21,17 +21,26 @@ const DATE_RANGES = [
   { label: t.filter.month, value: 'month' },
 ];
 
+/** 排序方式列表 */
+const SORT_OPTIONS = [
+  { label: t.filter.sortStars, value: 'stars' },
+  { label: t.filter.sortForks, value: 'forks' },
+  { label: t.filter.sortUpdated, value: 'updated' },
+];
+
 /**
  * 筛选栏组件
- * 支持语言和时间周期切换，sticky 吸顶
+ * 支持语言、时间周期和排序方式切换，sticky 吸顶
  * @param {Object} props
  * @param {string} props.language - 当前语言筛选
  * @param {(lang: string) => void} props.onLanguageChange - 语言切换回调
  * @param {'today'|'week'|'month'} props.dateRange - 当前时间范围
  * @param {(range: string) => void} props.onDateRangeChange - 时间范围切换回调
+ * @param {'stars'|'forks'|'updated'} props.sort - 当前排序方式
+ * @param {(sort: string) => void} props.onSortChange - 排序切换回调
  * @param {'light'|'dark'} props.theme - 当前主题
  */
-export function FilterBar({ language, onLanguageChange, dateRange, onDateRangeChange, theme }) {
+export function FilterBar({ language, onLanguageChange, dateRange, onDateRangeChange, sort = 'stars', onSortChange, theme }) {
   const isDark = theme === 'dark';
 
   return (
@@ -114,6 +123,27 @@ export function FilterBar({ language, onLanguageChange, dateRange, onDateRangeCh
               </button>
             );
           })}
+        </div>
+
+        {/* 分隔线 */}
+        <div className="hidden sm:block w-px h-5 mx-2" style={{ backgroundColor: isDark ? '#30363d' : '#d0d7de' }} />
+
+        {/* 排序方式 */}
+        <div className="flex items-center gap-1.5">
+          <select
+            value={sort}
+            onChange={(e) => onSortChange(e.target.value)}
+            className="px-3 py-1.5 rounded-md text-sm font-medium outline-none cursor-pointer"
+            style={{
+              backgroundColor: isDark ? '#0d1117' : '#ffffff',
+              color: isDark ? '#e6edf3' : '#1f2328',
+              border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}`,
+            }}
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
         </div>
       </div>
     </div>

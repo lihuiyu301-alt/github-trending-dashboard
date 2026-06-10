@@ -17,6 +17,9 @@ const zhCN = {
     today: '今天',
     week: '本周',
     month: '本月',
+    sortStars: '按 Star 排序',
+    sortForks: '按 Fork 排序',
+    sortUpdated: '按更新时间排序',
   },
 
   // 仓库卡片
@@ -40,6 +43,8 @@ const zhCN = {
     clearAll: '清空全部',
     addTo: '收藏 {name}',
     removeFrom: '取消收藏 {name}',
+    exportBtn: '导出',
+    importBtn: '导入',
   },
 
   // 错误与空状态
@@ -78,6 +83,12 @@ const zhCN = {
     showOriginal: '查看原文',
     translating: '翻译中...',
     error: '翻译失败',
+  },
+
+  // Toast 提示
+  toast: {
+    bookmarkAdded: '已收藏',
+    bookmarkRemoved: '已取消收藏',
   },
 };
 

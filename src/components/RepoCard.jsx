@@ -3,6 +3,7 @@ import { Star, GitFork, Bookmark, Languages, Loader2 } from 'lucide-react';
 import { formatNumber } from '../utils/githubApi';
 import { getLanguageColor } from '../utils/languageColors';
 import { useTranslate } from '../hooks/useTranslate';
+import { HighlightText } from './HighlightText';
 import t from '../i18n/zh-CN';
 
 /**
@@ -13,8 +14,9 @@ import t from '../i18n/zh-CN';
  * @param {boolean} props.isBookmarked - 是否已收藏
  * @param {(repo: Object) => void} props.onToggleBookmark - 收藏切换回调
  * @param {'light'|'dark'} props.theme - 当前主题
+ * @param {string} [props.keyword] - 搜索关键词（用于高亮）
  */
-export const RepoCard = memo(function RepoCard({ repo, isBookmarked, onToggleBookmark, theme }) {
+export const RepoCard = memo(function RepoCard({ repo, isBookmarked, onToggleBookmark, theme, keyword }) {
   const [bouncing, setBouncing] = useState(false);
   const isDark = theme === 'dark';
 
@@ -95,7 +97,7 @@ export const RepoCard = memo(function RepoCard({ repo, isBookmarked, onToggleBoo
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              {owner} / {name}
+              {keyword ? <HighlightText text={`${owner} / ${name}`} keyword={keyword} /> : `${owner} / ${name}`}
             </a>
           </div>
           <button
@@ -121,7 +123,9 @@ export const RepoCard = memo(function RepoCard({ repo, isBookmarked, onToggleBoo
               style={{ color: isDark ? '#7d8590' : '#656d76' }}
               title={displayDescription}
             >
-              {displayDescription}
+              {keyword && !isTranslated
+                ? <HighlightText text={displayDescription} keyword={keyword} highlightColor={isDark ? '#3b2e00' : '#fff3bf'} />
+                : displayDescription}
             </p>
             <div className="flex items-center gap-2 mt-1.5">
               {isTranslated ? (
