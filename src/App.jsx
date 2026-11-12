@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { Navbar } from './components/Navbar';
 import { FilterBar } from './components/FilterBar';
 import { RepoList } from './components/RepoList';
+import { RecommendationBoard } from './components/RecommendationBoard';
 import { BookmarkList } from './components/BookmarkList';
 import { ToastContainer } from './components/Toast';
 import { BackToTop } from './components/BackToTop';
 import { useGithubSearch } from './hooks/useGithubSearch';
+import { useRecommendations } from './hooks/useRecommendations';
 import { useBookmarks } from './hooks/useBookmarks';
 import { useTheme } from './hooks/useTheme';
 import { useToast } from './hooks/useToast';
@@ -55,6 +57,17 @@ export default function App() {
     dateRange,
     keyword,
     sort,
+  });
+
+  const {
+    data: recommendations,
+    loading: recommendationsLoading,
+    error: recommendationsError,
+    failedTypes: failedRecommendationTypes,
+    retry: retryRecommendations,
+  } = useRecommendations({
+    language,
+    enabled: activeTab === 'trending' && !keyword,
   });
 
   // URL 同步
@@ -134,6 +147,19 @@ export default function App() {
       <main className="max-w-[1280px] mx-auto px-4 sm:px-8 py-6">
         {activeTab === 'trending' ? (
           <>
+            {!keyword && (
+              <RecommendationBoard
+                data={recommendations}
+                loading={recommendationsLoading}
+                error={recommendationsError}
+                failedTypes={failedRecommendationTypes}
+                onRetry={retryRecommendations}
+                theme={theme}
+                language={language}
+                onToggleBookmark={handleToggleBookmark}
+                isBookmarked={isBookmarked}
+              />
+            )}
             {/* 结果统计 */}
             {!loading && total > 0 && (
               <p className="text-sm mb-4" style={{ color: theme === 'dark' ? '#7d8590' : '#656d76' }}>

@@ -92,7 +92,7 @@ export function useGithubSearch({ language = '', dateRange = 'week', keyword = '
       });
 
     return () => controller.abort();
-  }, [language, dateRange, keyword, currentPage, getCacheKey]);
+  }, [language, dateRange, keyword, sort, currentPage, getCacheKey]);
 
   const loadMore = useCallback(() => {
     setCurrentPage((prev) => prev + 1);

@@ -18,6 +18,8 @@
 ## ✨ 功能特性
 
 - [x] 🔥 **热门项目浏览** — 基于 GitHub Search API，按 Star 数降序展示最火项目
+- [x] **本周精选推荐** — 跟随语言筛选展示本周新晋热门、殿堂级热门、近期活跃热门
+- [x] **每周邮件周报** — GitHub Actions 每周一自动汇总 8 种语言的热门项目并发送邮件
 - [x] 🌐 **多语言筛选** — 支持 JavaScript、TypeScript、Python、Go、Rust、Java、C++、Swift 等 8 种语言
 - [x] ⏰ **时间范围切换** — 按 Today / This Week / This Month 三个维度筛选
 - [x] 🔍 **实时搜索** — 输入关键词搜索仓库，500ms 防抖优化
@@ -85,6 +87,54 @@ echo "VITE_GITHUB_TOKEN=ghp_你的Token" > .env.local
 
 > 💡 Token 仅在浏览器端使用，不会上传到任何服务器。`.env.local` 已在 `.gitignore` 中排除。
 
+## 邮件周报配置（可选）
+
+邮件周报通过 GitHub Actions 定时运行，不需要自建服务器或数据库。
+
+### 发送规则
+
+- 时间：每周一 09:00（北京时间，UTC `0 1 * * 1`）
+- 收件人：固定单个邮箱
+- 内容：8 种语言，每种语言包含“本周新晋热门”“殿堂级热门”“近期活跃热门”三个榜单，各取前 5 名
+- 数据源：GitHub Search API
+
+### 配置 GitHub Secrets
+
+在仓库 `Settings → Secrets and variables → Actions` 中添加：
+
+| Secret | 说明 |
+|---|---|
+| `MAIL_HOST` | SMTP 服务器，如 `smtp.qq.com`、`smtp.163.com` |
+| `MAIL_PORT` | SMTP 端口，通常为 `465` |
+| `MAIL_SECURE` | 端口 465 时填 `true`，其他端口按服务商要求填写 |
+| `MAIL_USER` | 发件邮箱地址 |
+| `MAIL_PASS` | 邮箱授权码或应用专用密码，不是邮箱登录密码 |
+| `MAIL_TO` | 收件邮箱地址 |
+| `MAIL_FROM` | 发件人显示地址，可与 `MAIL_USER` 相同 |
+
+以 QQ 邮箱为例：`MAIL_HOST=smtp.qq.com`、`MAIL_PORT=465`、`MAIL_SECURE=true`，`MAIL_PASS` 填写 QQ 邮箱设置中生成的授权码。
+
+### 手动测试
+
+在 GitHub 仓库的 `Actions → Weekly GitHub Digest → Run workflow` 中：
+
+- `dry_run` 勾选：只生成 HTML 预览并上传 artifact，不发送邮件
+- `dry_run` 不勾选：立即发送一封测试邮件
+
+本地生成预览：
+
+```bash
+npm run digest:preview
+```
+
+生成结果位于项目根目录的 `digest-preview.html`。本地实际发送需要先配置 `MAIL_*` 环境变量，再运行：
+
+```bash
+npm run digest:send
+```
+
+> 定时任务只会在 GitHub 默认分支上生效，且 GitHub Actions 的 cron 触发可能有几分钟延迟。当前目录若尚未关联 Git 仓库，请先推送到 GitHub。
+
 ## 📁 项目结构
 
 ```
@@ -94,6 +144,7 @@ github-trending-dashboard/
 │   ├── components/             # UI 组件
 │   │   ├── Navbar.jsx          # 导航栏（Logo、搜索、主题切换）
 │   │   ├── FilterBar.jsx       # 筛选栏（语言 + 时间范围）
+│   │   ├── RecommendationBoard.jsx # 本周精选推荐区
 │   │   ├── RepoCard.jsx        # 仓库卡片（React.memo 优化）
 │   │   ├── RepoList.jsx        # 卡片网格容器
 │   │   ├── SkeletonCard.jsx    # 骨架卡片
@@ -101,17 +152,26 @@ github-trending-dashboard/
 │   │   ├── EmptyState.jsx      # 空状态 / 错误状态
 │   │   ├── BookmarkList.jsx    # 收藏夹页面
 │   │   └── ErrorBoundary.jsx   # 错误边界
+│   ├── config/                 # 共享配置
+│   │   └── languages.js        # 支持的语言列表
 │   ├── hooks/                  # 自定义 Hooks
 │   │   ├── useGithubSearch.js  # API 请求 + 缓存 + 竞态处理
+│   │   ├── useRecommendations.js # 推荐榜单请求 + 缓存
 │   │   ├── useBookmarks.js     # 收藏夹 localStorage 管理
 │   │   ├── useTheme.js         # 主题切换 + 持久化
 │   │   └── useTranslate.js     # 翻译功能（MyMemory API）
 │   ├── utils/                  # 工具函数
 │   │   ├── githubApi.js        # URL 构建、日期计算、数字格式化
+│   │   ├── recommendations.js  # 推荐榜单查询与请求
 │   │   └── languageColors.js   # GitHub 官方语言颜色映射
 │   ├── App.jsx                 # 主应用组件
 │   ├── main.jsx                # 入口文件
 │   └── index.css               # 全局样式 + Tailwind 配置
+├── scripts/
+│   └── weekly-digest.mjs       # 邮件周报生成与发送脚本
+├── .github/workflows/
+│   ├── ci.yml                  # 持续集成
+│   └── weekly-digest.yml       # 每周邮件周报
 ├── vite.config.js              # Vite 配置
 ├── package.json
 └── README.md
@@ -128,6 +188,8 @@ github-trending-dashboard/
 | 状态管理 | React Hooks | — | `useState` / `useEffect` / `useCallback` / `useMemo` |
 | 数据请求 | Fetch API | — | 原生 `fetch` + `AbortController` |
 | 持久化 | localStorage | — | 收藏夹、主题偏好 |
+| 邮件定时任务 | GitHub Actions | — | 每周定时触发 |
+| 邮件发送 | Nodemailer | latest | SMTP 发送 HTML 邮件 |
 
 ## 🎨 设计规范
 

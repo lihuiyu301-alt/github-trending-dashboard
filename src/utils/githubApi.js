@@ -19,6 +19,29 @@ export function getDateFilter(range) {
 }
 
 /**
+ * 构建搜索查询字符串
+ * @param {Object} params
+ * @param {string} params.language - 语言筛选，空字符串表示全部
+ * @param {'today'|'week'|'month'} params.dateRange - 时间范围
+ * @param {string} params.keyword - 搜索关键词
+ * @returns {string} GitHub Search API 的 q 参数
+ */
+export function buildSearchQuery({ language = '', dateRange = 'week', keyword = '' }) {
+  const date = getDateFilter(dateRange);
+  let q = `created:>${date}`;
+
+  if (language) {
+    q += ` language:${language}`;
+  }
+
+  if (keyword) {
+    q += ` ${keyword} in:name,description`;
+  }
+
+  return q;
+}
+
+/**
  * 构建 GitHub Search API 的完整 URL
  * @param {Object} params
  * @param {string} params.language - 语言筛选，空字符串表示全部
@@ -29,19 +52,8 @@ export function getDateFilter(range) {
  * @returns {string} 完整的 API URL
  */
 export function buildApiUrl({ language = '', dateRange = 'week', keyword = '', sort = 'stars', page = 1 }) {
-  const date = getDateFilter(dateRange);
-  let q = `created:>${date}`;
-
-  if (language) {
-    q += `+language:${language}`;
-  }
-
-  if (keyword) {
-    q += `+${keyword} in:name,description`;
-  }
-
   const params = new URLSearchParams({
-    q,
+    q: buildSearchQuery({ language, dateRange, keyword }),
     sort,
     order: 'desc',
     per_page: '25',
@@ -52,16 +64,25 @@ export function buildApiUrl({ language = '', dateRange = 'week', keyword = '', s
 }
 
 /**
- * 获取请求头（支持可选的 GitHub Token）
+ * 构建请求头，支持可选的 GitHub Token
+ * @param {string} [token] - GitHub Personal Access Token
+ * @returns {Object} 请求头对象
+ */
+export function buildHeaders(token) {
+  return {
+    Accept: 'application/vnd.github.v3+json',
+    ...(token && {
+      Authorization: `Bearer ${token}`,
+    }),
+  };
+}
+
+/**
+ * 获取浏览器端请求头
  * @returns {Object} 请求头对象
  */
 export function getHeaders() {
-  return {
-    Accept: 'application/vnd.github.v3+json',
-    ...(import.meta.env.VITE_GITHUB_TOKEN && {
-      Authorization: `Bearer ${import.meta.env.VITE_GITHUB_TOKEN}`,
-    }),
-  };
+  return buildHeaders(import.meta.env.VITE_GITHUB_TOKEN);
 }
 
 /**
@@ -79,12 +100,33 @@ export function formatNumber(num) {
 /**
  * 发起 GitHub 搜索请求
  * @param {Object} params - 请求参数
- * @param {AbortSignal} signal - AbortController 信号
+ * @param {string} params.q - GitHub 搜索查询字符串
+ * @param {'stars'|'forks'|'updated'} [params.sort] - 排序方式
+ * @param {'desc'|'asc'} [params.order] - 排序方向
+ * @param {number} [params.perPage] - 每页结果数
+ * @param {number} [params.page] - 页码
+ * @param {Object} [params.headers] - 请求头
+ * @param {AbortSignal} [params.signal] - AbortController 信号
  * @returns {Promise<Object>} API 响应数据
  */
-export async function fetchRepos(params, signal) {
-  const url = buildApiUrl(params);
-  const response = await fetch(url, { headers: getHeaders(), signal });
+export async function searchRepos({
+  q,
+  sort = 'stars',
+  order = 'desc',
+  perPage = 25,
+  page = 1,
+  headers = {},
+  signal,
+}) {
+  const params = new URLSearchParams({
+    q,
+    sort,
+    order,
+    per_page: String(perPage),
+    page: String(page),
+  });
+
+  const response = await fetch(`${API_BASE}?${params.toString()}`, { headers, signal });
 
   if (response.status === 403 || response.status === 422) {
     throw { code: 'RATE_LIMIT', message: 'GitHub API rate limit exceeded' };
@@ -95,4 +137,23 @@ export async function fetchRepos(params, signal) {
   }
 
   return response.json();
+}
+
+/**
+ * 发起 GitHub 搜索请求
+ * @param {Object} params - 请求参数
+ * @param {AbortSignal} signal - AbortController 信号
+ * @returns {Promise<Object>} API 响应数据
+ */
+export async function fetchRepos(params, signal) {
+  const { language = '', dateRange = 'week', keyword = '', sort = 'stars', page = 1 } = params;
+
+  return searchRepos({
+    q: buildSearchQuery({ language, dateRange, keyword }),
+    sort,
+    perPage: 25,
+    page,
+    headers: getHeaders(),
+    signal,
+  });
 }

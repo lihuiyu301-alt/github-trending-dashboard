@@ -1,0 +1,53 @@
+name: Weekly GitHub Digest
+
+on:
+  schedule:
+    - cron: '0 1 * * 1'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: '只生成 HTML 预览，不发送邮件'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      - name: Send weekly digest
+        if: github.event_name != 'workflow_dispatch' || inputs.dry_run == false
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          MAIL_HOST: ${{ secrets.MAIL_HOST }}
+          MAIL_PORT: ${{ secrets.MAIL_PORT }}
+          MAIL_SECURE: ${{ secrets.MAIL_SECURE }}
+          MAIL_USER: ${{ secrets.MAIL_USER }}
+          MAIL_PASS: ${{ secrets.MAIL_PASS }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM }}
+        run: node scripts/weekly-digest.mjs --send
+
+      - name: Generate preview
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/weekly-digest.mjs --dry-run
+
+      - name: Upload preview
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-digest-preview
+          path: digest-preview.html
+          retention-days: 7

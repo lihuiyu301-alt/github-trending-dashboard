@@ -22,6 +22,22 @@ const zhCN = {
     sortUpdated: '按更新时间排序',
   },
 
+  // 推荐区
+  recommendation: {
+    title: '本周精选',
+    subtitle: '跟随当前语言筛选，聚合本周新星与长期热门项目',
+    weeklyNew: '本周新晋热门',
+    weeklyNewDesc: '近 7 天新建、Star 最多',
+    hallOfFame: '殿堂级热门',
+    hallOfFameDesc: '历史 Star 最高',
+    active: '近期活跃热门',
+    activeDesc: '近 7 天有更新、Star 较高',
+    digestNote: '每周一 09:00 邮件推送',
+    empty: '暂无数据',
+    error: '推荐加载失败',
+    retry: '重试',
+  },
+
   // 仓库卡片
   card: {
     more: '+{n} 更多',

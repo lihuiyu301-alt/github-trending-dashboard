@@ -1,17 +1,11 @@
 import { getLanguageColor } from '../utils/languageColors';
+import { LANGUAGES } from '../config/languages';
 import t from '../i18n/zh-CN';
 
-/** 必选语言列表 */
-const LANGUAGES = [
+/** 语言列表（含“全部”选项） */
+const LANGUAGE_OPTIONS = [
   { label: t.filter.all, value: '' },
-  { label: 'JavaScript', value: 'javascript' },
-  { label: 'TypeScript', value: 'typescript' },
-  { label: 'Python', value: 'python' },
-  { label: 'Go', value: 'go' },
-  { label: 'Rust', value: 'rust' },
-  { label: 'Java', value: 'java' },
-  { label: 'C++', value: 'cpp' },
-  { label: 'Swift', value: 'swift' },
+  ...LANGUAGES,
 ];
 
 /** 时间周期列表 */
@@ -57,7 +51,7 @@ export function FilterBar({ language, onLanguageChange, dateRange, onDateRangeCh
           role="group"
           aria-label={t.a11y.selectLang}
         >
-          {LANGUAGES.map((lang) => {
+          {LANGUAGE_OPTIONS.map((lang) => {
             const isActive = language === lang.value;
             const color = lang.value ? getLanguageColor(lang.label) : null;
             return (
