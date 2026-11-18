@@ -34,7 +34,7 @@ const zhCN = {
     hallOfFameDesc: '历史 Star 最高',
     active: 'AI 近期飙升',
     activeDesc: '近 7 天有更新、综合热度最高',
-    digestNote: '每周一 09:00 推送 AI 热门速递',
+    digestNote: '每天 09:00 推送 AI 热门速递',
     empty: '暂无数据',
     error: '推荐加载失败',
     retry: '重试',
