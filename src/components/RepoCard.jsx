@@ -1,6 +1,6 @@
 import { useState, useCallback, memo } from 'react';
-import { Star, GitFork, Bookmark, Languages, Loader2 } from 'lucide-react';
-import { formatNumber } from '../utils/githubApi';
+import { Star, GitFork, Bookmark, Languages, Loader2, TrendingUp } from 'lucide-react';
+import { formatNumber, formatStarsPerDay } from '../utils/githubApi';
 import { getLanguageColor } from '../utils/languageColors';
 import { useTranslate } from '../hooks/useTranslate';
 import { HighlightText } from './HighlightText';
@@ -11,12 +11,13 @@ import t from '../i18n/zh-CN';
  * 使用 React.memo 避免父组件重渲染导致的无效更新
  * @param {Object} props
  * @param {Object} props.repo - GitHub 仓库数据
+ * @param {number} [props.rank] - 排行榜名次
  * @param {boolean} props.isBookmarked - 是否已收藏
  * @param {(repo: Object) => void} props.onToggleBookmark - 收藏切换回调
  * @param {'light'|'dark'} props.theme - 当前主题
  * @param {string} [props.keyword] - 搜索关键词（用于高亮）
  */
-export const RepoCard = memo(function RepoCard({ repo, isBookmarked, onToggleBookmark, theme, keyword }) {
+export const RepoCard = memo(function RepoCard({ repo, rank, isBookmarked, onToggleBookmark, theme, keyword }) {
   const [bouncing, setBouncing] = useState(false);
   const isDark = theme === 'dark';
 
@@ -85,20 +86,38 @@ export const RepoCard = memo(function RepoCard({ repo, isBookmarked, onToggleBoo
             }}
           />
           <div className="flex-1 min-w-0">
-            <a
-              href={repo.html_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-semibold hover:underline block truncate"
-              style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                color: isDark ? '#58a6ff' : '#0969da',
-                fontSize: '15px',
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {keyword ? <HighlightText text={`${owner} / ${name}`} keyword={keyword} /> : `${owner} / ${name}`}
-            </a>
+            <div className="flex items-center gap-1.5 min-w-0">
+              {rank && (
+                <span
+                  className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-xs font-semibold shrink-0"
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    backgroundColor: rank <= 3
+                      ? (isDark ? 'rgba(227,179,65,0.18)' : '#fff8c5')
+                      : (isDark ? '#21262d' : '#eef2f6'),
+                    color: rank <= 3
+                      ? (isDark ? '#e3b341' : '#9a6700')
+                      : (isDark ? '#7d8590' : '#656d76'),
+                  }}
+                >
+                  #{rank}
+                </span>
+              )}
+              <a
+                href={repo.html_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-semibold hover:underline block truncate"
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  color: isDark ? '#58a6ff' : '#0969da',
+                  fontSize: '15px',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {keyword ? <HighlightText text={`${owner} / ${name}`} keyword={keyword} /> : `${owner} / ${name}`}
+              </a>
+            </div>
           </div>
           <button
             onClick={handleBookmarkClick}
@@ -187,6 +206,19 @@ export const RepoCard = memo(function RepoCard({ repo, isBookmarked, onToggleBoo
             <GitFork className="w-3.5 h-3.5" />
             {formatNumber(forks)}
           </span>
+          {repo._starsPerDay > 0 && (
+            <span
+              className="flex items-center gap-1 text-xs"
+              style={{
+                color: isDark ? '#3fb950' : '#1a7f37',
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
+              title="平均每日新增 Star 估算"
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              {formatStarsPerDay(repo._starsPerDay)}
+            </span>
+          )}
         </div>
 
         {/* Topics 标签 */}

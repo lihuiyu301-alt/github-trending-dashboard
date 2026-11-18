@@ -63,10 +63,11 @@ export function RepoList({ repos, loading, error, theme, onToggleBookmark, isBoo
   return (
     <div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {repos.map((repo) => (
+        {repos.map((repo, index) => (
           <RepoCard
             key={repo.id}
             repo={repo}
+            rank={index + 1}
             isBookmarked={isBookmarked(repo.id)}
             onToggleBookmark={onToggleBookmark}
             theme={theme}

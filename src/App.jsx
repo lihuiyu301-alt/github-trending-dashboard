@@ -33,6 +33,14 @@ export default function App() {
   }, [isBookmarked, toggleBookmark, showToast]);
 
   // 筛选状态
+  const [category, setCategory] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('cat') || 'all';
+  });
+  const [mode, setMode] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('mode') || 'trending';
+  });
   const [language, setLanguage] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('lang') || '';
@@ -47,16 +55,23 @@ export default function App() {
   });
   const [sort, setSort] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get('sort') || 'stars';
+    return params.get('sort') || 'trending';
+  });
+  const [hideCollections, setHideCollections] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('raw') !== '1';
   });
   const [activeTab, setActiveTab] = useState('trending');
 
   // API 请求
   const { repos, loading, error, total, loadMore, hasMore } = useGithubSearch({
+    category,
     language,
     dateRange,
+    mode,
     keyword,
     sort,
+    hideCollections,
   });
 
   const {
@@ -67,20 +82,25 @@ export default function App() {
     retry: retryRecommendations,
   } = useRecommendations({
     language,
+    category,
+    hideCollections,
     enabled: activeTab === 'trending' && !keyword,
   });
 
   // URL 同步
   useEffect(() => {
     const params = new URLSearchParams();
+    if (category !== 'all') params.set('cat', category);
+    if (mode !== 'trending') params.set('mode', mode);
     if (language) params.set('lang', language);
     if (dateRange !== 'week') params.set('range', dateRange);
     if (keyword) params.set('q', keyword);
-    if (sort !== 'stars') params.set('sort', sort);
+    if (sort !== 'trending') params.set('sort', sort);
+    if (!hideCollections) params.set('raw', '1');
     const qs = params.toString();
     const url = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
     window.history.replaceState(null, '', url);
-  }, [language, dateRange, keyword, sort]);
+  }, [category, mode, language, dateRange, keyword, sort, hideCollections]);
 
   // 重试回调
   const handleRetry = useCallback(() => {
@@ -134,12 +154,18 @@ export default function App() {
 
       {activeTab === 'trending' && (
         <FilterBar
+          category={category}
+          onCategoryChange={setCategory}
+          mode={mode}
+          onModeChange={setMode}
           language={language}
           onLanguageChange={setLanguage}
           dateRange={dateRange}
           onDateRangeChange={setDateRange}
           sort={sort}
           onSortChange={setSort}
+          hideCollections={hideCollections}
+          onHideCollectionsChange={setHideCollections}
           theme={theme}
         />
       )}
@@ -155,6 +181,7 @@ export default function App() {
                 failedTypes={failedRecommendationTypes}
                 onRetry={retryRecommendations}
                 theme={theme}
+                category={category}
                 language={language}
                 onToggleBookmark={handleToggleBookmark}
                 isBookmarked={isBookmarked}

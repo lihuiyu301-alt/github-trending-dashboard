@@ -1,7 +1,10 @@
 /**
  * GitHub API 工具函数
- * 封装请求构建、日期计算、数字格式化等工具
+ * 封装请求构建、日期计算、数字格式化与 AI 热门项目聚合请求
  */
+
+import { getAiCategory } from '../config/aiCategories.js';
+import { rankAiRepos } from './aiRanking.js';
 
 const API_BASE = 'https://api.github.com/search/repositories';
 
@@ -82,7 +85,7 @@ export function buildHeaders(token) {
  * @returns {Object} 请求头对象
  */
 export function getHeaders() {
-  return buildHeaders(import.meta.env.VITE_GITHUB_TOKEN);
+  return buildHeaders(import.meta.env?.VITE_GITHUB_TOKEN);
 }
 
 /**
@@ -140,20 +143,118 @@ export async function searchRepos({
 }
 
 /**
- * 发起 GitHub 搜索请求
+ * 日均 Star 增速格式化：123.4 → 123/天，1200 → 1.2k/天
+ * @param {number} num
+ * @returns {string}
+ */
+export function formatStarsPerDay(num) {
+  if (num == null || Number.isNaN(num)) return '0/天';
+  if (num >= 1000) return `${formatNumber(Math.round(num))}/天`;
+  if (num >= 10) return `${Math.round(num)}/天`;
+  return `${num.toFixed(1).replace(/\.0$/, '')}/天`;
+}
+
+/**
+ * 构建 AI 细分赛道的多路 GitHub Search 查询字符串
+ * @param {Object} params
+ * @param {string} [params.category='all']
+ * @param {string} [params.language='']
+ * @param {'today'|'week'|'month'} [params.dateRange='week']
+ * @param {'trending'|'new'} [params.mode='trending']
+ * @param {string} [params.keyword='']
+ * @returns {string[]}
+ */
+export function buildAiQueries({
+  category = 'all',
+  language = '',
+  dateRange = 'week',
+  mode = 'trending',
+  keyword = '',
+} = {}) {
+  const date = getDateFilter(dateRange);
+  const aiCategory = getAiCategory(category);
+  const minStarsMap = { today: 20, week: 50, month: 100 };
+  const timeQualifier = mode === 'new'
+    ? `created:>${date}`
+    : `pushed:>${date} stars:>${minStarsMap[dateRange] || 50} archived:false`;
+
+  const languageQualifier = language ? ` language:${language}` : '';
+  const keywordQualifier = keyword ? ` ${keyword} in:name,description` : '';
+
+  const topicQueries = keyword ? [aiCategory.queries[0]] : aiCategory.queries;
+
+  return topicQueries.map(
+    (topic) => `${topic} ${timeQualifier}${languageQualifier}${keywordQualifier}`
+  );
+}
+
+/**
+ * 发起 AI 热门仓库聚合请求（多路 topic 查询合并去重 + 热度重排）
+ * @param {Object} params
+ * @param {AbortSignal} [signal]
+ * @returns {Promise<{ items: Array, total_count: number }>}
+ */
+export async function fetchAiRepos(params = {}, signal) {
+  const {
+    category = 'all',
+    language = '',
+    dateRange = 'week',
+    mode = 'trending',
+    keyword = '',
+    sort = 'trending',
+    hideCollections = true,
+    page = 1,
+    token,
+  } = params;
+
+  const queries = buildAiQueries({ category, language, dateRange, mode, keyword });
+  const apiSort = sort === 'trending' ? 'stars' : sort;
+  const headers = token !== undefined ? buildHeaders(token) : getHeaders();
+
+  const results = await Promise.allSettled(
+    queries.map((q) =>
+      searchRepos({
+        q,
+        sort: apiSort,
+        perPage: 25,
+        page,
+        headers,
+        signal,
+      })
+    )
+  );
+
+  const aborted = Boolean(signal?.aborted) || results.some(
+    (res) => res.status === 'rejected' && res.reason?.name === 'AbortError'
+  );
+  if (aborted) {
+    const abortErr = new Error('Aborted');
+    abortErr.name = 'AbortError';
+    throw abortErr;
+  }
+
+  const fulfilled = results.filter((res) => res.status === 'fulfilled').map((res) => res.value);
+  if (fulfilled.length === 0) {
+    const firstRejected = results.find((res) => res.status === 'rejected');
+    throw firstRejected?.reason || { code: 'NETWORK_ERROR', message: 'Failed to fetch AI repos' };
+  }
+
+  const mergedItems = fulfilled.flatMap((data) => data.items || []);
+  const rankedItems = rankAiRepos(mergedItems, { hideCollections, sort });
+  const totalCount = Math.max(...fulfilled.map((data) => data.total_count || 0), rankedItems.length);
+
+  return {
+    items: rankedItems,
+    total_count: totalCount,
+  };
+}
+
+/**
+ * 发起 GitHub 搜索请求（兼容旧调用，默认走 AI 热门聚合）
  * @param {Object} params - 请求参数
  * @param {AbortSignal} signal - AbortController 信号
  * @returns {Promise<Object>} API 响应数据
  */
 export async function fetchRepos(params, signal) {
-  const { language = '', dateRange = 'week', keyword = '', sort = 'stars', page = 1 } = params;
-
-  return searchRepos({
-    q: buildSearchQuery({ language, dateRange, keyword }),
-    sort,
-    perPage: 25,
-    page,
-    headers: getHeaders(),
-    signal,
-  });
+  return fetchAiRepos(params, signal);
 }

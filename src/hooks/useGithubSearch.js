@@ -1,18 +1,32 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchRepos } from '../utils/githubApi';
 
+function mergeUniqueRepos(prev, next) {
+  const seen = new Set(prev.map((item) => item.id));
+  const merged = [...prev];
+  for (const item of next) {
+    if (!seen.has(item.id)) {
+      seen.add(item.id);
+      merged.push(item);
+    }
+  }
+  return merged;
+}
+
 /**
- * 封装 GitHub Search API 请求逻辑的自定义 Hook
+ * 封装 GitHub AI 热门项目搜索逻辑的自定义 Hook
  * 支持 AbortController 竞态取消、简单缓存、错误分类
- * @param {Object} params
- * @param {string} params.language - 语言筛选，'' 表示全部
- * @param {'today'|'week'|'month'} params.dateRange - 时间范围
- * @param {string} params.keyword - 搜索关键词
- * @param {'stars'|'forks'|'updated'} params.sort - 排序方式
- * @param {number} params.page - 当前页码，默认 1
- * @returns {{ repos: Array, loading: boolean, error: Object|null, total: number, loadMore: () => void, hasMore: boolean }}
  */
-export function useGithubSearch({ language = '', dateRange = 'week', keyword = '', sort = 'stars', page = 1 }) {
+export function useGithubSearch({
+  category = 'all',
+  language = '',
+  dateRange = 'week',
+  mode = 'trending',
+  keyword = '',
+  sort = 'trending',
+  hideCollections = true,
+  page = 1,
+}) {
   const [repos, setRepos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -22,37 +36,32 @@ export function useGithubSearch({ language = '', dateRange = 'week', keyword = '
   const abortRef = useRef(null);
   const cacheRef = useRef(new Map());
 
-  // 生成缓存 key
   const getCacheKey = useCallback(
-    (p) => `${language}|${dateRange}|${keyword}|${sort}|${p}`,
-    [language, dateRange, keyword, sort]
+    (p) => `${category}|${language}|${dateRange}|${mode}|${keyword}|${sort}|${hideCollections}|${p}`,
+    [category, language, dateRange, mode, keyword, sort, hideCollections]
   );
 
-  // 当筛选参数变化时重置页码和结果
   useEffect(() => {
     setRepos([]);
     setCurrentPage(1);
     setError(null);
-  }, [language, dateRange, keyword, sort]);
+  }, [category, language, dateRange, mode, keyword, sort, hideCollections]);
 
-  // 发起请求
   useEffect(() => {
     const key = getCacheKey(currentPage);
 
-    // 检查缓存
     if (cacheRef.current.has(key)) {
       const cached = cacheRef.current.get(key);
       if (currentPage === 1) {
         setRepos(cached.items);
       } else {
-        setRepos((prev) => [...prev, ...cached.items]);
+        setRepos((prev) => mergeUniqueRepos(prev, cached.items));
       }
       setTotal(cached.total_count);
       setLoading(false);
       return;
     }
 
-    // 取消上一个请求
     if (abortRef.current) {
       abortRef.current.abort();
     }
@@ -63,12 +72,11 @@ export function useGithubSearch({ language = '', dateRange = 'week', keyword = '
     setError(null);
 
     fetchRepos(
-      { language, dateRange, keyword, sort, page: currentPage },
+      { category, language, dateRange, mode, keyword, sort, hideCollections, page: currentPage },
       controller.signal
     )
       .then((data) => {
-        // 写入缓存（保留最近 5 条）
-        if (cacheRef.current.size >= 5) {
+        if (cacheRef.current.size >= 8) {
           const firstKey = cacheRef.current.keys().next().value;
           cacheRef.current.delete(firstKey);
         }
@@ -77,7 +85,7 @@ export function useGithubSearch({ language = '', dateRange = 'week', keyword = '
         if (currentPage === 1) {
           setRepos(data.items || []);
         } else {
-          setRepos((prev) => [...prev, ...(data.items || [])]);
+          setRepos((prev) => mergeUniqueRepos(prev, data.items || []));
         }
         setTotal(data.total_count || 0);
       })
@@ -92,13 +100,13 @@ export function useGithubSearch({ language = '', dateRange = 'week', keyword = '
       });
 
     return () => controller.abort();
-  }, [language, dateRange, keyword, sort, currentPage, getCacheKey]);
+  }, [category, language, dateRange, mode, keyword, sort, hideCollections, currentPage, getCacheKey]);
 
   const loadMore = useCallback(() => {
     setCurrentPage((prev) => prev + 1);
   }, []);
 
-  const hasMore = repos.length < total && repos.length < 1000; // GitHub API 限制最多 1000 条
+  const hasMore = repos.length < total && repos.length < 1000;
 
   return { repos, loading, error, total, loadMore, hasMore };
 }

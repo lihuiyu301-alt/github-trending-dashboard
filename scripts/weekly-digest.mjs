@@ -1,13 +1,40 @@
-import { writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import nodemailer from 'nodemailer';
-import { LANGUAGES } from '../src/config/languages.js';
-import { fetchRecommendationLists } from '../src/utils/recommendations.js';
-import { formatNumber } from '../src/utils/githubApi.js';
+import { AI_CATEGORIES } from '../src/config/aiCategories.js';
+import { fetchAiRepos, formatNumber, formatStarsPerDay } from '../src/utils/githubApi.js';
 
 const PREVIEW_FILE = resolve(process.cwd(), 'digest-preview.html');
 const isDryRun = !process.argv.includes('--send');
-const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || '';
+
+/**
+ * 本地运行自动加载 .env / .env.local（不覆盖已有环境变量）
+ */
+function loadLocalEnv() {
+  for (const filename of ['.env', '.env.local']) {
+    const filePath = resolve(process.cwd(), filename);
+    if (!existsSync(filePath)) continue;
+
+    const lines = readFileSync(filePath, 'utf8').split(/\r?\n/);
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith('#')) continue;
+      const eqIndex = line.indexOf('=');
+      if (eqIndex <= 0) continue;
+      const key = line.slice(0, eqIndex).trim();
+      let value = line.slice(eqIndex + 1).trim();
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      if (!(key in process.env)) {
+        process.env[key] = value;
+      }
+    }
+  }
+}
+
+loadLocalEnv();
+const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || process.env.VITE_GITHUB_TOKEN || '';
 
 function sleep(ms) {
   return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
@@ -51,57 +78,49 @@ function renderRepoRow(repo, index) {
   const url = repo.html_url || `https://github.com/${fullName}`;
   const description = truncate(repo.description, 120);
   const rankColor = index < 3 ? '#9a6700' : '#8b949e';
+  const velocity = repo._starsPerDay > 0 ? ` &middot; <span style="color:#1a7f37;">+${escapeHtml(formatStarsPerDay(repo._starsPerDay))}</span>` : '';
+  const topics = (repo.topics || []).slice(0, 3).map((tp) => `#${escapeHtml(tp)}`).join(' ');
 
   return `
     <tr>
-      <td width="24" valign="top" style="padding:7px 0;font-family:'JetBrains Mono',Consolas,monospace;font-size:12px;color:${rankColor};">${index + 1}</td>
-      <td valign="top" style="padding:7px 0;">
+      <td width="28" valign="top" style="padding:8px 0;font-family:'JetBrains Mono',Consolas,monospace;font-size:12px;font-weight:700;color:${rankColor};">#${index + 1}</td>
+      <td valign="top" style="padding:8px 0;">
         <div>
           <a href="${escapeHtml(url)}" style="color:#0969da;font-size:13px;font-weight:600;text-decoration:none;font-family:'JetBrains Mono',Consolas,monospace;">${escapeHtml(fullName)}</a>
         </div>
         ${description ? `<div style="margin-top:2px;font-size:12px;line-height:18px;color:#656d76;">${escapeHtml(description)}</div>` : ''}
-        <div style="margin-top:2px;font-size:11px;color:#8b949e;">
-          Star ${escapeHtml(formatNumber(repo.stargazers_count))}${repo.language ? ` &middot; ${escapeHtml(repo.language)}` : ''}
+        <div style="margin-top:3px;font-size:11px;color:#8b949e;">
+          &#9733; ${escapeHtml(formatNumber(repo.stargazers_count))}${velocity}${repo.language ? ` &middot; ${escapeHtml(repo.language)}` : ''}${topics ? ` &middot; ${topics}` : ''}
         </div>
       </td>
     </tr>`;
 }
 
-function renderList(title, description, items, failed) {
-  const rows = failed
+function renderSection(section) {
+  const rows = section.failed
     ? '<tr><td style="padding:8px 0;font-size:12px;color:#cf222e;">获取失败，请稍后重试</td></tr>'
-    : items.length > 0
-      ? items.slice(0, 5).map(renderRepoRow).join('')
+    : section.items.length > 0
+      ? section.items.map(renderRepoRow).join('')
       : '<tr><td style="padding:8px 0;font-size:12px;color:#8b949e;">暂无数据</td></tr>';
 
   return `
-    <div style="margin-top:16px;">
-      <div style="font-size:13px;font-weight:700;color:#1f2328;">${title}</div>
-      <div style="margin:2px 0 4px;font-size:11px;color:#8b949e;">${description}</div>
+    <div style="padding:20px 0 8px;border-bottom:1px solid #d0d7de;">
+      <div style="font-size:16px;font-weight:700;color:#1f2328;">${escapeHtml(section.title)}</div>
+      <div style="margin:3px 0 6px;font-size:12px;color:#656d76;">${escapeHtml(section.description)}</div>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${rows}</table>
     </div>`;
 }
 
-function renderLanguageSection(entry) {
-  return `
-    <div style="padding:22px 0 4px;border-bottom:2px solid #d0d7de;">
-      <div style="font-size:17px;font-weight:700;color:#1f2328;">${escapeHtml(entry.language.label)}</div>
-      ${renderList('本周新晋热门', '近 7 天新建、Star 最多', entry.weekly, Boolean(entry.errors.weekly))}
-      ${renderList('殿堂级热门', '历史 Star 最高', entry.hallOfFame, Boolean(entry.errors.hallOfFame))}
-      ${renderList('近期活跃热门', '近 7 天有更新、Star 较高', entry.active, Boolean(entry.errors.active))}
-    </div>`;
-}
-
-function renderDigestHtml(entries) {
+function renderDigestHtml(sections) {
   const subjectDate = formatDate(new Date());
-  const content = entries.map(renderLanguageSection).join('');
+  const content = sections.map(renderSection).join('');
 
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GitHub 本周热门速递 · ${escapeHtml(subjectDate)}</title>
+  <title>GitHub AI 热门项目速递 · ${escapeHtml(subjectDate)}</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f6f8fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;color:#1f2328;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
@@ -110,20 +129,20 @@ function renderDigestHtml(entries) {
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:720px;">
           <tr>
             <td style="background-color:#0d1117;padding:24px;border-radius:8px 8px 0 0;">
-              <div style="font-size:11px;letter-spacing:1.5px;color:#8b949e;">GITHUB WEEKLY DIGEST</div>
-              <div style="margin-top:6px;font-size:22px;font-weight:700;color:#e6edf3;">GitHub 本周热门速递</div>
-              <div style="margin-top:6px;font-size:13px;color:#7d8590;">${escapeHtml(subjectDate)} · 本周区间 ${escapeHtml(getWeekRange())}</div>
+              <div style="font-size:11px;letter-spacing:1.5px;color:#58a6ff;">GITHUB AI TRENDING DIGEST</div>
+              <div style="margin-top:6px;font-size:22px;font-weight:700;color:#e6edf3;">AI 开源热门项目速递</div>
+              <div style="margin-top:6px;font-size:13px;color:#7d8590;">${escapeHtml(subjectDate)} · 统计区间 ${escapeHtml(getWeekRange())}</div>
             </td>
           </tr>
           <tr>
             <td style="background-color:#ffffff;padding:8px 24px 24px;border:1px solid #d0d7de;border-top:0;border-radius:0 0 8px 8px;">
               <p style="margin:16px 0 0;font-size:13px;line-height:20px;color:#656d76;">
-                本期按语言汇总三类项目：本周新晋热门、殿堂级热门、近期活跃热门。点击仓库名可直接打开 GitHub 页面。
+                本期已自动过滤纯合集类仓库，按综合热度与增速汇总 GitHub AI 领域最火的开源项目（含活跃飙升榜、新晋黑马榜与细分赛道精选）。
               </p>
               ${content}
               <div style="margin-top:24px;padding-top:16px;border-top:1px solid #d0d7de;font-size:11px;line-height:18px;color:#8b949e;">
                 数据来源 GitHub Search API，由 GitHub Actions 自动生成并发送。<br />
-                若需调整收件邮箱或发送时间，请修改仓库的 Actions Secrets 与工作流配置。
+                若需调整收件邮箱或发送频率，请修改仓库的 Actions Secrets 与 .github/workflows/weekly-digest.yml。
               </div>
             </td>
           </tr>
@@ -135,40 +154,95 @@ function renderDigestHtml(entries) {
 </html>`;
 }
 
+async function fetchSectionWithRetry(label, fetcher, limit) {
+  try {
+    const res = await fetcher();
+    const items = (res.items || []).slice(0, limit);
+    console.log(`${label}: 获取 ${items.length} 条`);
+    return { items, failed: false };
+  } catch (err) {
+    console.warn(`${label} 首次请求失败 (${err?.message || err})，2 秒后重试...`);
+    await sleep(2000);
+    try {
+      const res = await fetcher();
+      const items = (res.items || []).slice(0, limit);
+      console.log(`${label} 重试成功: 获取 ${items.length} 条`);
+      return { items, failed: false };
+    } catch (retryErr) {
+      console.error(`${label} 重试仍失败: ${retryErr?.message || retryErr}`);
+      return { items: [], failed: true };
+    }
+  }
+}
+
 async function collectDigest() {
   if (!token) {
-    console.warn('未检测到 GITHUB_TOKEN，匿名请求可能触发 GitHub Search API 限流。');
+    console.warn('未检测到 GITHUB_TOKEN，匿名请求可能触发 GitHub Search API 限流（10次/分钟）。');
   }
 
-  const entries = [];
+  const sections = [];
 
-  for (const language of LANGUAGES) {
-    let result = await fetchRecommendationLists({ language: language.value, token });
+  const trendingRes = await fetchSectionWithRetry(
+    'AI 本周活跃飙升 Top 10',
+    () => fetchAiRepos({
+      category: 'all',
+      dateRange: 'week',
+      mode: 'trending',
+      sort: 'trending',
+      hideCollections: true,
+      token,
+    }),
+    10
+  );
+  sections.push({
+    title: 'AI 本周活跃飙升榜 Top 10',
+    description: '近 7 天持续更新且综合热度（日均增速 + 关注度）最高的 AI 项目',
+    ...trendingRes,
+  });
+  await sleep(1200);
 
-    if (result.allFailed) {
-      await sleep(2000);
-      result = await fetchRecommendationLists({ language: language.value, token });
-    }
+  const newRes = await fetchSectionWithRetry(
+    'AI 本周新晋黑马 Top 10',
+    () => fetchAiRepos({
+      category: 'all',
+      dateRange: 'week',
+      mode: 'new',
+      sort: 'stars',
+      hideCollections: true,
+      token,
+    }),
+    10
+  );
+  sections.push({
+    title: 'AI 本周新晋黑马榜 Top 10',
+    description: '近 7 天全新发布、Star 增长最快的 AI 新项目',
+    ...newRes,
+  });
+  await sleep(1200);
 
-    const errorTypes = Object.keys(result.errors);
-
-    console.log(
-      `${language.label}: weekly=${result.weekly.length}, hallOfFame=${result.hallOfFame.length}, active=${result.active.length}${errorTypes.length ? `, errors=${errorTypes.join(',')}` : ''}`
+  const subCategories = AI_CATEGORIES.filter((cat) => ['llm', 'agent', 'rag', 'multimodal'].includes(cat.value));
+  for (const cat of subCategories) {
+    const catRes = await fetchSectionWithRetry(
+      `${cat.label} Top 5`,
+      () => fetchAiRepos({
+        category: cat.value,
+        dateRange: 'week',
+        mode: 'trending',
+        sort: 'trending',
+        hideCollections: true,
+        token,
+      }),
+      5
     );
-
-    entries.push({
-      language,
-      weekly: result.weekly,
-      hallOfFame: result.hallOfFame,
-      active: result.active,
-      errors: result.errors,
-      allFailed: result.allFailed,
+    sections.push({
+      title: `${cat.label} · 本周热门 Top 5`,
+      description: cat.description,
+      ...catRes,
     });
-
-    await sleep(1000);
+    await sleep(1200);
   }
 
-  return entries;
+  return sections;
 }
 
 function getSmtpConfig() {
@@ -193,15 +267,15 @@ function getSmtpConfig() {
 }
 
 async function main() {
-  const entries = await collectDigest();
-  const allFailed = entries.every((entry) => entry.allFailed);
-  const html = renderDigestHtml(entries);
+  const sections = await collectDigest();
+  const allFailed = sections.every((section) => section.failed);
+  const html = renderDigestHtml(sections);
 
   writeFileSync(PREVIEW_FILE, html, 'utf8');
-  console.log(`已生成邮件预览: ${PREVIEW_FILE}`);
+  console.log(`已生成 AI 热门邮件预览: ${PREVIEW_FILE}`);
 
   if (allFailed) {
-    throw new Error('所有语言的 GitHub 请求均失败，已跳过发送邮件');
+    throw new Error('所有 AI 榜单的 GitHub 请求均失败，已跳过发送邮件');
   }
 
   if (isDryRun) {
@@ -221,7 +295,7 @@ async function main() {
   const info = await transporter.sendMail({
     from: smtp.from,
     to: smtp.to,
-    subject: `GitHub 本周热门速递 · ${subjectDate}`,
+    subject: `AI 开源热门项目速递 · ${subjectDate}`,
     html,
   });
 

@@ -3,6 +3,7 @@ import { Flame, Trophy, Activity, Star, Bookmark, RefreshCw, Mail } from 'lucide
 import { formatNumber } from '../utils/githubApi';
 import { getLanguageColor } from '../utils/languageColors';
 import { LANGUAGES } from '../config/languages';
+import { getAiCategory } from '../config/aiCategories';
 import t from '../i18n/zh-CN';
 
 const COLUMNS = [
@@ -198,6 +199,7 @@ export const RecommendationBoard = memo(function RecommendationBoard({
   failedTypes = [],
   onRetry,
   theme,
+  category = 'all',
   language,
   onToggleBookmark,
   isBookmarked,
@@ -205,6 +207,7 @@ export const RecommendationBoard = memo(function RecommendationBoard({
   const isDark = theme === 'dark';
   const subColor = isDark ? '#7d8590' : '#656d76';
   const textColor = isDark ? '#e6edf3' : '#1f2328';
+  const categoryLabel = getAiCategory(category).label;
   const languageLabel = LANGUAGES.find((item) => item.value === language)?.label || t.filter.all;
 
   return (
@@ -242,7 +245,7 @@ export const RecommendationBoard = memo(function RecommendationBoard({
                   color: isDark ? '#58a6ff' : '#0969da',
                 }}
               >
-                {languageLabel}
+                {categoryLabel}{language ? ` · ${languageLabel}` : ''}
               </span>
             </div>
             <p className="text-xs mt-0.5" style={{ color: subColor }}>

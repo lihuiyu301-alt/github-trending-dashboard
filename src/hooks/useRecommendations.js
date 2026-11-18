@@ -5,13 +5,13 @@ const CACHE_TTL = 30 * 60 * 1000;
 const EMPTY_DATA = { weekly: [], hallOfFame: [], active: [] };
 const cache = new Map();
 
-function getCacheKey(language) {
-  return language || '__all__';
+function getCacheKey(language, category, hideCollections) {
+  return `${category || 'all'}|${language || '__all__'}|${hideCollections}`;
 }
 
-export function useRecommendations({ language = '', enabled = true } = {}) {
+export function useRecommendations({ language = '', category = 'all', hideCollections = true, enabled = true } = {}) {
   const [state, setState] = useState({
-    language: undefined,
+    cacheKey: undefined,
     data: EMPTY_DATA,
     error: null,
     failedTypes: [],
@@ -21,21 +21,22 @@ export function useRecommendations({ language = '', enabled = true } = {}) {
   const abortRef = useRef(null);
   const requestIdRef = useRef(0);
 
-  const isCurrentLanguage = state.language === language;
-  const data = isCurrentLanguage ? state.data : EMPTY_DATA;
-  const error = isCurrentLanguage ? state.error : null;
-  const failedTypes = isCurrentLanguage ? state.failedTypes : [];
-  const loading = enabled && (!isCurrentLanguage || state.loading);
+  const currentCacheKey = getCacheKey(language, category, hideCollections);
+  const isCurrentKey = state.cacheKey === currentCacheKey;
+  const data = isCurrentKey ? state.data : EMPTY_DATA;
+  const error = isCurrentKey ? state.error : null;
+  const failedTypes = isCurrentKey ? state.failedTypes : [];
+  const loading = enabled && (!isCurrentKey || state.loading);
 
   useEffect(() => {
     if (!enabled) return;
 
-    const cacheKey = getCacheKey(language);
+    const cacheKey = getCacheKey(language, category, hideCollections);
     const cached = cache.get(cacheKey);
 
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       setState({
-        language,
+        cacheKey,
         data: cached.data,
         error: cached.error,
         failedTypes: cached.failedTypes,
@@ -54,8 +55,8 @@ export function useRecommendations({ language = '', enabled = true } = {}) {
     requestIdRef.current = requestId;
 
     setState((previous) => ({
-      language,
-      data: previous.language === language ? previous.data : EMPTY_DATA,
+      cacheKey,
+      data: previous.cacheKey === cacheKey ? previous.data : EMPTY_DATA,
       error: null,
       failedTypes: [],
       loading: true,
@@ -63,6 +64,8 @@ export function useRecommendations({ language = '', enabled = true } = {}) {
 
     fetchRecommendationLists({
       language,
+      category,
+      hideCollections,
       token: import.meta.env.VITE_GITHUB_TOKEN,
       signal: controller.signal,
     })
@@ -80,7 +83,7 @@ export function useRecommendations({ language = '', enabled = true } = {}) {
           : null;
 
         setState({
-          language,
+          cacheKey,
           data: nextData,
           error: nextError,
           failedTypes: nextFailedTypes,
@@ -97,7 +100,7 @@ export function useRecommendations({ language = '', enabled = true } = {}) {
         if (err?.name === 'AbortError' || controller.signal.aborted || requestId !== requestIdRef.current) return;
 
         setState({
-          language,
+          cacheKey,
           data: EMPTY_DATA,
           error: err,
           failedTypes: [],
@@ -106,19 +109,20 @@ export function useRecommendations({ language = '', enabled = true } = {}) {
       });
 
     return () => controller.abort();
-  }, [language, enabled, reloadToken]);
+  }, [language, category, hideCollections, enabled, reloadToken]);
 
   const retry = useCallback(() => {
-    cache.delete(getCacheKey(language));
+    const cacheKey = getCacheKey(language, category, hideCollections);
+    cache.delete(cacheKey);
     setState((previous) => ({
-      language,
-      data: previous.language === language ? previous.data : EMPTY_DATA,
+      cacheKey,
+      data: previous.cacheKey === cacheKey ? previous.data : EMPTY_DATA,
       error: null,
       failedTypes: [],
       loading: true,
     }));
     setReloadToken((value) => value + 1);
-  }, [language]);
+  }, [language, category, hideCollections]);
 
   return { data, loading, error, failedTypes, retry };
 }

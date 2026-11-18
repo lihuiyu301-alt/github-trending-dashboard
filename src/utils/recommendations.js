@@ -1,52 +1,59 @@
 import { getDateFilter, searchRepos, buildHeaders } from './githubApi.js';
+import { getAiCategory } from '../config/aiCategories.js';
+import { rankAiRepos } from './aiRanking.js';
 
 export const RECOMMENDATION_CONFIG = {
-  weekly: { days: 7, perPage: 5 },
-  hallOfFame: { minStars: 10000, perPage: 5 },
-  active: { days: 7, minStars: 5000, perPage: 10, limit: 5 },
+  weekly: { days: 7, perPage: 10, limit: 5 },
+  hallOfFame: { minStars: 10000, perPage: 10, limit: 5 },
+  active: { days: 7, minStars: 1000, perPage: 15, limit: 5 },
 };
 
 export const RECOMMENDATION_KEYS = ['weekly', 'hallOfFame', 'active'];
 
-export function buildRecommendationQuery(type, language = '') {
+export function buildRecommendationQuery(type, language = '', category = 'all') {
+  const aiTopic = getAiCategory(category).queries[0];
   const languageQuery = language ? ` language:${language}` : '';
 
   if (type === 'weekly') {
-    return `created:>${getDateFilter('week')}${languageQuery}`;
+    return `${aiTopic} created:>${getDateFilter('week')}${languageQuery}`;
   }
 
   if (type === 'hallOfFame') {
-    return `stars:>${RECOMMENDATION_CONFIG.hallOfFame.minStars}${languageQuery}`;
+    return `${aiTopic} stars:>${RECOMMENDATION_CONFIG.hallOfFame.minStars}${languageQuery}`;
   }
 
   if (type === 'active') {
-    return `pushed:>${getDateFilter('week')} stars:>${RECOMMENDATION_CONFIG.active.minStars} archived:false${languageQuery}`;
+    return `${aiTopic} pushed:>${getDateFilter('week')} stars:>${RECOMMENDATION_CONFIG.active.minStars} archived:false${languageQuery}`;
   }
 
   throw new Error(`Unknown recommendation type: ${type}`);
 }
 
-async function fetchRecommendationList(type, language, { token, signal } = {}) {
-  const perPage = type === 'active'
-    ? RECOMMENDATION_CONFIG.active.perPage
-    : RECOMMENDATION_CONFIG[type].perPage;
-
+async function fetchRecommendationList(type, language, category, { token, signal, hideCollections = true } = {}) {
+  const config = RECOMMENDATION_CONFIG[type];
   const data = await searchRepos({
-    q: buildRecommendationQuery(type, language),
+    q: buildRecommendationQuery(type, language, category),
     sort: 'stars',
-    perPage,
+    perPage: config.perPage,
     headers: buildHeaders(token),
     signal,
   });
 
-  return data.items || [];
+  const sortMode = type === 'active' ? 'trending' : 'stars';
+  return rankAiRepos(data.items || [], { hideCollections, sort: sortMode });
 }
 
-export async function fetchRecommendationLists({ language = '', token, signal } = {}) {
+export async function fetchRecommendationLists({
+  language = '',
+  category = 'all',
+  hideCollections = true,
+  token,
+  signal,
+} = {}) {
   const results = await Promise.allSettled([
-    fetchRecommendationList('weekly', language, { token, signal }),
-    fetchRecommendationList('hallOfFame', language, { token, signal }),
-    fetchRecommendationList('active', language, { token, signal }),
+    fetchRecommendationList('weekly', language, category, { token, signal, hideCollections }),
+    fetchRecommendationList('hallOfFame', language, category, { token, signal, hideCollections }),
+    fetchRecommendationList('active', language, category, { token, signal, hideCollections }),
   ]);
 
   const aborted = Boolean(signal?.aborted) || results.some(
@@ -71,8 +78,12 @@ export async function fetchRecommendationLists({ language = '', token, signal } 
     }
   });
 
-  const weekly = results[0].status === 'fulfilled' ? results[0].value : [];
-  const hallOfFame = results[1].status === 'fulfilled' ? results[1].value : [];
+  const weekly = results[0].status === 'fulfilled'
+    ? results[0].value.slice(0, RECOMMENDATION_CONFIG.weekly.limit)
+    : [];
+  const hallOfFame = results[1].status === 'fulfilled'
+    ? results[1].value.slice(0, RECOMMENDATION_CONFIG.hallOfFame.limit)
+    : [];
   const rawActive = results[2].status === 'fulfilled' ? results[2].value : [];
   const hallIds = new Set(hallOfFame.map((repo) => repo.id));
   const active = rawActive

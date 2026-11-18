@@ -5,34 +5,36 @@
 const zhCN = {
   // 导航栏
   nav: {
-    title: '热门趋势',
-    trending: '热门',
+    title: 'AI 热门趋势',
+    trending: 'AI 排行',
     bookmarks: '收藏夹',
-    searchPlaceholder: '搜索仓库...',
+    searchPlaceholder: '搜索 AI 仓库...',
   },
 
   // 筛选栏
   filter: {
-    all: '全部',
+    all: '全部语言',
     today: '今天',
     week: '本周',
     month: '本月',
+    sortTrending: '综合热度排行',
     sortStars: '按 Star 排序',
     sortForks: '按 Fork 排序',
     sortUpdated: '按更新时间排序',
+    hideCollections: '过滤合集',
   },
 
   // 推荐区
   recommendation: {
-    title: '本周精选',
-    subtitle: '跟随当前语言筛选，聚合本周新星与长期热门项目',
-    weeklyNew: '本周新晋热门',
+    title: 'AI 本周精选',
+    subtitle: '聚焦当前 AI 赛道与语言，聚合新晋黑马与活跃飙升项目',
+    weeklyNew: 'AI 本周新晋',
     weeklyNewDesc: '近 7 天新建、Star 最多',
-    hallOfFame: '殿堂级热门',
+    hallOfFame: 'AI 殿堂级项目',
     hallOfFameDesc: '历史 Star 最高',
-    active: '近期活跃热门',
-    activeDesc: '近 7 天有更新、Star 较高',
-    digestNote: '每周一 09:00 邮件推送',
+    active: 'AI 近期飙升',
+    activeDesc: '近 7 天有更新、综合热度最高',
+    digestNote: '每周一 09:00 推送 AI 热门速递',
     empty: '暂无数据',
     error: '推荐加载失败',
     retry: '重试',
