@@ -40,6 +40,74 @@ function sleep(ms) {
   return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 }
 
+const translationCache = new Map();
+
+function hasEnoughChinese(text) {
+  const matches = String(text || '').match(/[\u4e00-\u9fa5]/g);
+  return (matches ? matches.length : 0) >= 4;
+}
+
+async function translateViaMyMemory(text) {
+  const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text.slice(0, 450))}&langpair=en|zh-CN`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
+  if (!res.ok) throw new Error(`MyMemory HTTP ${res.status}`);
+  const data = await res.json();
+  if (data?.responseStatus === 200 && data?.responseData?.translatedText) {
+    return data.responseData.translatedText;
+  }
+  throw new Error(`MyMemory status ${data?.responseStatus}`);
+}
+
+async function translateViaGoogle(text) {
+  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=${encodeURIComponent(text.slice(0, 450))}`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+  if (!res.ok) throw new Error(`Google HTTP ${res.status}`);
+  const data = await res.json();
+  const translated = Array.isArray(data?.[0]) ? data[0].map((part) => part?.[0] || '').join('') : '';
+  if (!translated) throw new Error('Google empty translation');
+  return translated;
+}
+
+async function translateToZh(text) {
+  const clean = String(text || '').trim();
+  if (!clean || hasEnoughChinese(clean)) return clean;
+
+  const cacheKey = clean.slice(0, 200);
+  if (translationCache.has(cacheKey)) {
+    return translationCache.get(cacheKey);
+  }
+
+  let translated = clean;
+  try {
+    translated = await translateViaMyMemory(clean);
+  } catch {
+    try {
+      translated = await translateViaGoogle(clean);
+    } catch {
+      translated = clean;
+    }
+  }
+
+  translationCache.set(cacheKey, translated);
+  return translated;
+}
+
+async function translateSections(sections) {
+  let translatedCount = 0;
+  for (const section of sections) {
+    for (const repo of section.items || []) {
+      if (!repo?.description) continue;
+      const zh = await translateToZh(repo.description);
+      if (zh !== repo.description) {
+        repo.description = zh;
+        translatedCount++;
+      }
+      await sleep(120);
+    }
+  }
+  console.log(`已完成项目简介中文翻译: ${translatedCount} 条`);
+}
+
 function escapeHtml(value) {
   return String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -269,6 +337,9 @@ function getSmtpConfig() {
 async function main() {
   const sections = await collectDigest();
   const allFailed = sections.every((section) => section.failed);
+  if (!allFailed) {
+    await translateSections(sections);
+  }
   const html = renderDigestHtml(sections);
 
   writeFileSync(PREVIEW_FILE, html, 'utf8');
